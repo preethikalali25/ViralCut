@@ -2,6 +2,9 @@ import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { useAuth } from "@/hooks/useAuth";
+
+const Login = lazy(() => import("@/pages/Login"));
 
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const ConnectTikTok = lazy(() => import("@/pages/ConnectTikTok"));
@@ -23,24 +26,49 @@ function LoadingFallback() {
 
 export default function App() {
   const onboardingComplete = useConnectionStore((s) => s.onboardingComplete);
+  const { user, loading } = useAuth();
+
+  if (loading) return <LoadingFallback />;
 
   return (
     <Routes>
+      {/* Login route */}
+      <Route
+        path="/login"
+        element={
+          user ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Suspense fallback={<LoadingFallback />}>
+              <Login />
+            </Suspense>
+          )
+        }
+      />
+
       {/* Onboarding route */}
       <Route
         path="/connect"
         element={
-          <Suspense fallback={<LoadingFallback />}>
-            <Onboarding />
-          </Suspense>
+          !user ? (
+            <Navigate to="/login" replace />
+          ) : (
+            <Suspense fallback={<LoadingFallback />}>
+              <Onboarding />
+            </Suspense>
+          )
         }
       />
       <Route
         path="/connect/tiktok"
         element={
-          <Suspense fallback={<LoadingFallback />}>
-            <ConnectTikTok />
-          </Suspense>
+          !user ? (
+            <Navigate to="/login" replace />
+          ) : (
+            <Suspense fallback={<LoadingFallback />}>
+              <ConnectTikTok />
+            </Suspense>
+          )
         }
       />
 
@@ -48,7 +76,9 @@ export default function App() {
         <Route
           index
           element={
-            !onboardingComplete ? (
+            !user ? (
+              <Navigate to="/login" replace />
+            ) : !onboardingComplete ? (
               <Navigate to="/connect" replace />
             ) : (
               <Suspense fallback={<LoadingFallback />}>
