@@ -30,13 +30,9 @@ export default function App() {
       <Route
         path="/connect"
         element={
-          onboardingComplete ? (
-            <Navigate to="/" replace />
-          ) : (
-            <Suspense fallback={<LoadingFallback />}>
-              <Onboarding />
-            </Suspense>
-          )
+          <Suspense fallback={<LoadingFallback />}>
+            <Onboarding />
+          </Suspense>
         }
       />
       <Route
