@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 6% 7%;
+    --foreground: 240 5% 92%;
+    --card: 240 6% 10%;
+    --card-foreground: 240 5% 92%;
+    --popover: 240 6% 10%;
+    --popover-foreground: 240 5% 92%;
+    --primary: 263 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 240 5% 80%;
+    --muted: 240 5% 16%;
+    --muted-foreground: 240 5% 55%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5% 14%;
+    --input: 240 5% 18%;
+    --ring: 263 70% 55%;
+    --radius: 0.625rem;
+
+    --color-violet: 263 70% 55%;
+    --color-amber: 38 92% 50%;
+    --color-emerald: 160 84% 39%;
+    --color-rose: 350 89% 60%;
+    --color-sky: 199 89% 48%;
+
+    --sidebar-background: 240 6% 5%;
+    --sidebar-foreground: 240 5% 65%;
+    --sidebar-primary: 263 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 5% 10%;
+    --sidebar-accent-foreground: 240 5% 92%;
+    --sidebar-border: 240 5% 12%;
+    --sidebar-ring: 263 70% 55%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .spotlight-card {
+    background: linear-gradient(
+      135deg,
+      hsl(240 6% 12%) 0%,
+      hsl(240 6% 9%) 100%
+    );
+    border: 1px solid hsl(240 5% 16%);
+  }
+
+  .spotlight-card:hover {
+    border-color: hsl(263 70% 35%);
+    box-shadow: 0 0 24px -6px hsl(263 70% 30% / 0.3);
+  }
+
+  .gradient-border {
+    background: linear-gradient(hsl(240 6% 10%), hsl(240 6% 10%)) padding-box,
+      linear-gradient(135deg, hsl(263 70% 55%), hsl(38 92% 50%)) border-box;
+    border: 1px solid transparent;
+  }
+
+  .glow-violet {
+    box-shadow: 0 0 32px -4px hsl(263 70% 45% / 0.4);
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 32px -4px hsl(38 92% 50% / 0.3);
+  }
+
+  .text-gradient-primary {
+    background: linear-gradient(135deg, hsl(263 70% 65%), hsl(263 50% 80%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-accent {
+    background: linear-gradient(135deg, hsl(38 92% 55%), hsl(38 92% 70%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(240 5% 20%);
+    border-radius: 4px;
+  }
+}
