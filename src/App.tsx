@@ -1,7 +1,9 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
+import { useConnectionStore } from "@/stores/connectionStore";
 
+const ConnectInstagram = lazy(() => import("@/pages/ConnectInstagram"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Upload = lazy(() => import("@/pages/Upload"));
 const Editor = lazy(() => import("@/pages/Editor"));
@@ -17,15 +19,35 @@ function LoadingFallback() {
 }
 
 export default function App() {
+  const onboardingComplete = useConnectionStore((s) => s.onboardingComplete);
+
   return (
     <Routes>
+      {/* Onboarding route */}
+      <Route
+        path="/connect"
+        element={
+          onboardingComplete ? (
+            <Navigate to="/" replace />
+          ) : (
+            <Suspense fallback={<LoadingFallback />}>
+              <ConnectInstagram />
+            </Suspense>
+          )
+        }
+      />
+
       <Route element={<AppLayout />}>
         <Route
           index
           element={
-            <Suspense fallback={<LoadingFallback />}>
-              <Dashboard />
-            </Suspense>
+            !onboardingComplete ? (
+              <Navigate to="/connect" replace />
+            ) : (
+              <Suspense fallback={<LoadingFallback />}>
+                <Dashboard />
+              </Suspense>
+            )
           }
         />
         <Route
