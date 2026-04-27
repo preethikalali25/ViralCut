@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
-  Instagram,
   CheckCircle2,
   ArrowRight,
   Shield,
@@ -11,54 +10,59 @@ import {
   Users,
   BarChart3,
   Video,
-  Sparkles,
+  Music,
   Loader2,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connectionStore";
-import connectBg from "@/assets/connect-instagram-bg.jpg";
+import connectBg from "@/assets/connect-tiktok-bg.jpg";
 
 type FlowStep = "welcome" | "connecting" | "permissions" | "profile" | "done";
 
 const PERMISSIONS = [
   {
     icon: Video,
-    label: "Access your Reels & Stories",
+    label: "Access your videos & drafts",
     description: "Read video content for AI optimization",
   },
   {
     icon: BarChart3,
-    label: "View performance insights",
-    description: "Track views, engagement, and retention",
+    label: "View analytics & insights",
+    description: "Track views, watch time, and engagement",
   },
   {
     icon: Users,
-    label: "Read audience data",
-    description: "Understand your followers for better targeting",
+    label: "Read audience demographics",
+    description: "Understand your followers for trend targeting",
   },
   {
     icon: RefreshCw,
-    label: "Publish content on your behalf",
+    label: "Post content on your behalf",
     description: "Schedule and auto-post optimized videos",
+  },
+  {
+    icon: Music,
+    label: "Access trending sounds",
+    description: "Match videos with viral audio trends",
   },
 ];
 
 const FEATURES = [
   {
-    icon: Sparkles,
-    title: "AI Auto-Edit",
-    desc: "Smart trimming, reframing & subtitles",
+    icon: Music,
+    title: "Trending Sounds",
+    desc: "Auto-match viral audio to your clips",
   },
   {
     icon: Zap,
-    title: "Viral Hooks",
-    desc: "AI-generated scroll-stopping openings",
+    title: "Hook Engine",
+    desc: "TikTok-optimized scroll stoppers",
   },
   {
     icon: BarChart3,
-    title: "Performance Loop",
-    desc: "Learn what works and optimize",
+    title: "FYP Analytics",
+    desc: "Track what lands on the For You page",
   },
 ];
 
@@ -73,14 +77,22 @@ const fadeUp = {
 };
 
 const MOCK_PROFILE = {
-  username: "creator_studio",
-  displayName: "Creator Studio",
+  username: "viralcut_creator",
+  displayName: "ViralCut Creator",
   avatarUrl:
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&h=120&fit=crop&crop=face",
-  followers: 24800,
+    "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=120&h=120&fit=crop&crop=face",
+  followers: 31200,
 };
 
-export default function ConnectInstagram() {
+function TikTokIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V9.41a8.16 8.16 0 0 0 4.77 1.52V7.56a4.85 4.85 0 0 1-1.01-.87Z" />
+    </svg>
+  );
+}
+
+export default function ConnectTikTok() {
   const navigate = useNavigate();
   const { connectAccount, completeOnboarding, isConnected } =
     useConnectionStore();
@@ -88,14 +100,13 @@ export default function ConnectInstagram() {
   const [step, setStep] = useState<FlowStep>("welcome");
   const [connectingProgress, setConnectingProgress] = useState(0);
 
-  const alreadyConnected = isConnected("instagram");
+  const alreadyConnected = isConnected("tiktok");
 
   const handleStartConnect = useCallback(() => {
     setStep("connecting");
     setConnectingProgress(0);
   }, []);
 
-  // Simulate OAuth redirect + token exchange
   useEffect(() => {
     if (step !== "connecting") return;
 
@@ -116,10 +127,9 @@ export default function ConnectInstagram() {
   const handleGrantPermissions = () => {
     setStep("profile");
 
-    // Simulate profile fetch
     setTimeout(() => {
       connectAccount({
-        platform: "instagram",
+        platform: "tiktok",
         username: MOCK_PROFILE.username,
         displayName: MOCK_PROFILE.displayName,
         avatarUrl: MOCK_PROFILE.avatarUrl,
@@ -142,7 +152,7 @@ export default function ConnectInstagram() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background">
-      {/* Background image with overlay */}
+      {/* Background */}
       <div className="absolute inset-0">
         <img
           src={connectBg}
@@ -152,9 +162,9 @@ export default function ConnectInstagram() {
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background/95 to-background/80" />
       </div>
 
-      {/* Animated gradient orbs */}
-      <div className="absolute left-1/4 top-1/4 size-[400px] rounded-full bg-[hsl(330_80%_55%/0.08)] blur-[120px]" />
-      <div className="absolute bottom-1/4 right-1/4 size-[350px] rounded-full bg-[hsl(263_70%_55%/0.08)] blur-[120px]" />
+      {/* Gradient orbs */}
+      <div className="absolute left-1/4 top-1/4 size-[400px] rounded-full bg-[hsl(180_80%_50%/0.08)] blur-[120px]" />
+      <div className="absolute bottom-1/4 right-1/4 size-[350px] rounded-full bg-[hsl(340_80%_55%/0.08)] blur-[120px]" />
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-xl px-6">
@@ -168,25 +178,25 @@ export default function ConnectInstagram() {
               exit="exit"
               className="flex flex-col items-center text-center"
             >
-              {/* Logo */}
               <motion.div custom={0} variants={fadeUp} className="mb-8">
-                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary glow-violet">
-                  <Zap className="size-7 text-white" />
+                <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-cyan-500 shadow-lg shadow-cyan-500/25">
+                  <TikTokIcon className="size-7 text-white" />
                 </div>
                 <h2 className="text-sm font-semibold tracking-widest text-muted-foreground">
                   VIRALCUT
                 </h2>
               </motion.div>
 
-              {/* Heading */}
               <motion.h1
                 custom={1}
                 variants={fadeUp}
                 className="mb-3 text-3xl font-bold leading-tight tracking-tight text-foreground"
               >
-                Connect your Instagram
+                Connect your TikTok
                 <br />
-                <span className="text-gradient-primary">to get started</span>
+                <span className="bg-gradient-to-r from-cyan-400 to-pink-400 bg-clip-text text-transparent">
+                  to unlock viral reach
+                </span>
               </motion.h1>
 
               <motion.p
@@ -194,12 +204,10 @@ export default function ConnectInstagram() {
                 variants={fadeUp}
                 className="mb-10 max-w-md text-base text-muted-foreground"
               >
-                Link your Instagram account so ViralCut can analyze your
-                content, optimize videos for Reels, and auto-publish when
-                you&apos;re ready.
+                Link your TikTok account so ViralCut can match trending sounds,
+                optimize hooks for the FYP, and auto-publish your best content.
               </motion.p>
 
-              {/* Feature pills */}
               <motion.div
                 custom={3}
                 variants={fadeUp}
@@ -210,7 +218,7 @@ export default function ConnectInstagram() {
                     key={f.title}
                     className="flex items-center gap-2.5 rounded-full border border-border bg-card/60 px-4 py-2.5 backdrop-blur-sm"
                   >
-                    <f.icon className="size-4 text-primary" />
+                    <f.icon className="size-4 text-cyan-400" />
                     <div className="text-left">
                       <p className="text-[13px] font-semibold text-foreground">
                         {f.title}
@@ -223,7 +231,6 @@ export default function ConnectInstagram() {
                 ))}
               </motion.div>
 
-              {/* Connect Button */}
               <motion.div
                 custom={4}
                 variants={fadeUp}
@@ -231,10 +238,10 @@ export default function ConnectInstagram() {
               >
                 <button
                   onClick={handleStartConnect}
-                  className="group flex w-full max-w-sm items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-[hsl(330_80%_55%)] via-[hsl(350_85%_58%)] to-[hsl(25_90%_55%)] px-8 py-4 text-base font-bold text-white shadow-lg shadow-[hsl(330_80%_55%/0.25)] transition-all duration-200 hover:shadow-xl hover:shadow-[hsl(330_80%_55%/0.35)] active:scale-[0.98]"
+                  className="group flex w-full max-w-sm items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-pink-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-cyan-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-cyan-500/35 active:scale-[0.98]"
                 >
-                  <Instagram className="size-5" />
-                  Connect Instagram
+                  <TikTokIcon className="size-5" />
+                  Connect TikTok
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
                 </button>
 
@@ -246,7 +253,6 @@ export default function ConnectInstagram() {
                 </button>
               </motion.div>
 
-              {/* Trust badge */}
               <motion.div
                 custom={5}
                 variants={fadeUp}
@@ -261,7 +267,7 @@ export default function ConnectInstagram() {
             </motion.div>
           )}
 
-          {/* ── STEP: Connecting (simulated OAuth) ── */}
+          {/* ── STEP: Connecting ── */}
           {step === "connecting" && (
             <motion.div
               key="connecting"
@@ -272,9 +278,9 @@ export default function ConnectInstagram() {
             >
               <motion.div custom={0} variants={fadeUp} className="mb-8">
                 <div className="relative mx-auto size-20">
-                  <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[hsl(330_80%_55%)]" />
+                  <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-cyan-400" />
                   <div className="absolute inset-2 flex items-center justify-center rounded-full bg-card">
-                    <Instagram className="size-8 text-[hsl(330_80%_55%)]" />
+                    <TikTokIcon className="size-8 text-cyan-400" />
                   </div>
                 </div>
               </motion.div>
@@ -284,14 +290,14 @@ export default function ConnectInstagram() {
                 variants={fadeUp}
                 className="mb-2 text-xl font-bold text-foreground"
               >
-                Connecting to Instagram…
+                Connecting to TikTok…
               </motion.h2>
               <motion.p
                 custom={2}
                 variants={fadeUp}
                 className="mb-8 text-sm text-muted-foreground"
               >
-                Authenticating via Meta Business API
+                Authenticating via TikTok for Developers API
               </motion.p>
 
               <motion.div
@@ -301,7 +307,7 @@ export default function ConnectInstagram() {
               >
                 <div className="h-2 overflow-hidden rounded-full bg-secondary">
                   <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-[hsl(330_80%_55%)] to-[hsl(25_90%_55%)]"
+                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-pink-500"
                     initial={{ width: 0 }}
                     animate={{
                       width: `${Math.min(connectingProgress, 100)}%`,
@@ -328,9 +334,9 @@ export default function ConnectInstagram() {
               <motion.div
                 custom={0}
                 variants={fadeUp}
-                className="mb-2 flex size-14 items-center justify-center rounded-2xl bg-[hsl(330_80%_55%/0.12)]"
+                className="mb-2 flex size-14 items-center justify-center rounded-2xl bg-cyan-500/12"
               >
-                <Shield className="size-7 text-[hsl(330_80%_55%)]" />
+                <Shield className="size-7 text-cyan-400" />
               </motion.div>
 
               <motion.h2
@@ -345,7 +351,7 @@ export default function ConnectInstagram() {
                 variants={fadeUp}
                 className="mb-8 text-sm text-muted-foreground"
               >
-                ViralCut needs these permissions to optimize your content
+                ViralCut needs these permissions to optimize your TikTok content
               </motion.p>
 
               <motion.div
@@ -363,7 +369,7 @@ export default function ConnectInstagram() {
                     className="flex items-center gap-4 rounded-xl border border-border bg-card/80 p-4 backdrop-blur-sm"
                   >
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                      <perm.icon className="size-5 text-[hsl(330_80%_55%)]" />
+                      <perm.icon className="size-5 text-cyan-400" />
                     </div>
                     <div className="flex-1">
                       <p className="text-[13px] font-semibold text-foreground">
@@ -379,13 +385,13 @@ export default function ConnectInstagram() {
               </motion.div>
 
               <motion.div
-                custom={8}
+                custom={9}
                 variants={fadeUp}
                 className="flex w-full flex-col items-center gap-3"
               >
                 <button
                   onClick={handleGrantPermissions}
-                  className="flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[hsl(330_80%_55%)] via-[hsl(350_85%_58%)] to-[hsl(25_90%_55%)] px-8 py-4 text-base font-bold text-white shadow-lg shadow-[hsl(330_80%_55%/0.25)] transition-all duration-200 hover:shadow-xl hover:shadow-[hsl(330_80%_55%/0.35)] active:scale-[0.98]"
+                  className="flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-pink-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-cyan-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-cyan-500/35 active:scale-[0.98]"
                 >
                   <CheckCircle2 className="size-5" />
                   Allow All Permissions
@@ -410,7 +416,7 @@ export default function ConnectInstagram() {
               className="flex flex-col items-center text-center"
             >
               <motion.div custom={0} variants={fadeUp}>
-                <Loader2 className="mb-6 size-12 animate-spin text-primary" />
+                <Loader2 className="mb-6 size-12 animate-spin text-cyan-400" />
               </motion.div>
               <motion.h2
                 custom={1}
@@ -424,7 +430,7 @@ export default function ConnectInstagram() {
                 variants={fadeUp}
                 className="text-sm text-muted-foreground"
               >
-                Syncing account data and recent Reels
+                Syncing account data and recent videos
               </motion.p>
             </motion.div>
           )}
@@ -438,7 +444,6 @@ export default function ConnectInstagram() {
               exit="exit"
               className="flex flex-col items-center text-center"
             >
-              {/* Success check */}
               <motion.div
                 custom={0}
                 variants={fadeUp}
@@ -452,17 +457,16 @@ export default function ConnectInstagram() {
                 variants={fadeUp}
                 className="mb-2 text-2xl font-bold text-foreground"
               >
-                Instagram Connected!
+                TikTok Connected!
               </motion.h2>
               <motion.p
                 custom={2}
                 variants={fadeUp}
                 className="mb-8 text-sm text-muted-foreground"
               >
-                Your account is linked and ready to go.
+                Your account is linked and ready for viral content.
               </motion.p>
 
-              {/* Profile card */}
               <motion.div
                 custom={3}
                 variants={fadeUp}
@@ -472,7 +476,7 @@ export default function ConnectInstagram() {
                   <img
                     src={MOCK_PROFILE.avatarUrl}
                     alt={MOCK_PROFILE.displayName}
-                    className="size-14 rounded-full border-2 border-[hsl(330_80%_55%/0.4)] object-cover"
+                    className="size-14 rounded-full border-2 border-cyan-500/40 object-cover"
                   />
                   <div className="text-left">
                     <p className="text-base font-bold text-foreground">
@@ -511,20 +515,13 @@ export default function ConnectInstagram() {
                 </div>
               </motion.div>
 
-              <motion.div custom={4} variants={fadeUp} className="flex flex-col items-center gap-3">
+              <motion.div custom={4} variants={fadeUp}>
                 <button
                   onClick={handleFinish}
                   className="group flex items-center gap-2 rounded-2xl bg-primary px-10 py-4 text-base font-bold text-white shadow-lg shadow-primary/25 transition-all duration-200 hover:shadow-xl hover:shadow-primary/35 active:scale-[0.98]"
                 >
                   Go to Dashboard
                   <ChevronRight className="size-5 transition-transform group-hover:translate-x-1" />
-                </button>
-                <button
-                  onClick={() => { completeOnboarding(); navigate("/connect/tiktok"); }}
-                  className="flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Also connect TikTok
-                  <ArrowRight className="size-3.5" />
                 </button>
               </motion.div>
             </motion.div>

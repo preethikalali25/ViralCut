@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { useConnectionStore } from "@/stores/connectionStore";
 
 const ConnectInstagram = lazy(() => import("@/pages/ConnectInstagram"));
+const ConnectTikTok = lazy(() => import("@/pages/ConnectTikTok"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Upload = lazy(() => import("@/pages/Upload"));
 const Editor = lazy(() => import("@/pages/Editor"));
@@ -24,7 +25,7 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Onboarding route */}
+      {/* Onboarding routes */}
       <Route
         path="/connect"
         element={
@@ -35,6 +36,14 @@ export default function App() {
               <ConnectInstagram />
             </Suspense>
           )
+        }
+      />
+      <Route
+        path="/connect/tiktok"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ConnectTikTok />
+          </Suspense>
         }
       />
 
