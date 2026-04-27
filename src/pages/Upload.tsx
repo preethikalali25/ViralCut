@@ -60,7 +60,7 @@ export default function Upload() {
     let progress = 0;
     let step = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 8 + 2;
+      progress += Math.random() * 18 + 10;
       if (progress > (step + 1) * 14.3) step = Math.min(step + 1, 6);
 
       if (progress >= 100) {
@@ -109,7 +109,7 @@ export default function Upload() {
             : q
         )
       );
-    }, 400);
+    }, 200);
 
     return () => clearInterval(interval);
   }, [queue, activeItem, addVideo]);
