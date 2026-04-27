@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { X, Film, CheckCircle2, AlertCircle } from "lucide-react";
-import { cn, formatDuration } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import UploadZone from "@/components/features/UploadZone";
 import ProcessingPipeline from "@/components/features/ProcessingPipeline";
 import { useVideoStore } from "@/stores/videoStore";
@@ -32,6 +32,12 @@ export default function Upload() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [activeItem, setActiveItem] = useState<QueueItem | null>(null);
 
+  // Refs to prevent effect re-runs from killing the interval
+  const processingRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const addVideoRef = useRef(addVideo);
+  addVideoRef.current = addVideo;
+
   const handleUpload = useCallback((files: FileList) => {
     const newItems: QueueItem[] = Array.from(files).map((f, i) => ({
       id: `upload-${Date.now()}-${i}`,
@@ -44,52 +50,60 @@ export default function Upload() {
     setQueue((prev) => [...prev, ...newItems]);
   }, []);
 
-  // Simulate processing for demo
+  // Pick up waiting items and start processing
   useEffect(() => {
+    if (processingRef.current) return;
     if (queue.length === 0) return;
 
     const waitingItem = queue.find((q) => q.status === "waiting");
-    if (!waitingItem || activeItem) return;
+    if (!waitingItem) return;
 
-    const item = { ...waitingItem, status: "processing" as const };
-    setActiveItem(item);
+    processingRef.current = true;
+    const itemId = waitingItem.id;
+    const itemName = waitingItem.name;
+
+    setActiveItem({ ...waitingItem, status: "processing" });
     setQueue((prev) =>
-      prev.map((q) => (q.id === item.id ? { ...q, status: "processing" } : q))
+      prev.map((q) => (q.id === itemId ? { ...q, status: "processing" } : q))
     );
 
     let progress = 0;
     let step = 0;
-    const interval = setInterval(() => {
+
+    intervalRef.current = setInterval(() => {
       progress += Math.random() * 18 + 10;
       if (progress > (step + 1) * 14.3) step = Math.min(step + 1, 6);
 
       if (progress >= 100) {
-        clearInterval(interval);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = null;
+
         setQueue((prev) =>
           prev.map((q) =>
-            q.id === item.id
+            q.id === itemId
               ? { ...q, status: "done", progress: 100, step: 7 }
               : q
           )
         );
         setActiveItem(null);
+        processingRef.current = false;
 
-        addVideo({
+        addVideoRef.current({
           id: `v-new-${Date.now()}`,
-          title: item.name.replace(/\.[^/.]+$/, ""),
+          title: itemName.replace(/\.[^/.]+$/, ""),
           thumbnail: `https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400&h=600&fit=crop&random=${Date.now()}`,
           duration: Math.floor(Math.random() * 50) + 20,
           status: "ready",
           platforms: ["instagram"],
           hook: {
             type: "question",
-            text: "You won't believe what happens next…",
+            text: "You won't believe what happens next\u2026",
             alternates: [
-              "Wait for it…",
+              "Wait for it\u2026",
               "This changed everything for me",
             ],
           },
-          caption: "AI-generated caption ready for your review ✨",
+          caption: "AI-generated caption ready for your review \u2728",
           hashtags: ["#viral", "#trending", "#fyp"],
           createdAt: new Date().toISOString(),
           category: "general",
@@ -97,26 +111,40 @@ export default function Upload() {
         return;
       }
 
-      setActiveItem({
-        ...item,
-        progress: Math.min(progress, 99),
-        step,
-      });
+      const currentProgress = Math.min(progress, 99);
+      setActiveItem((prev) =>
+        prev ? { ...prev, progress: currentProgress, step } : null
+      );
       setQueue((prev) =>
         prev.map((q) =>
-          q.id === item.id
-            ? { ...q, progress: Math.min(progress, 99), step }
+          q.id === itemId
+            ? { ...q, progress: currentProgress, step }
             : q
         )
       );
     }, 200);
 
-    return () => clearInterval(interval);
-  }, [queue, activeItem, addVideo]);
+    // NOTE: no cleanup here — interval is managed via intervalRef
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queue]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   const removeItem = (id: string) => {
     setQueue((prev) => prev.filter((q) => q.id !== id));
-    if (activeItem?.id === id) setActiveItem(null);
+    if (activeItem?.id === id) {
+      setActiveItem(null);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      processingRef.current = false;
+    }
   };
 
   return (
