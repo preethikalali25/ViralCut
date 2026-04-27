@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
@@ -13,40 +13,14 @@ import {
   Music,
   Loader2,
   ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { supabase } from "@/lib/supabase";
 import connectBg from "@/assets/connect-tiktok-bg.jpg";
 
-type FlowStep = "welcome" | "connecting" | "permissions" | "profile" | "done";
-
-const PERMISSIONS = [
-  {
-    icon: Video,
-    label: "Access your videos & drafts",
-    description: "Read video content for AI optimization",
-  },
-  {
-    icon: BarChart3,
-    label: "View analytics & insights",
-    description: "Track views, watch time, and engagement",
-  },
-  {
-    icon: Users,
-    label: "Read audience demographics",
-    description: "Understand your followers for trend targeting",
-  },
-  {
-    icon: RefreshCw,
-    label: "Post content on your behalf",
-    description: "Schedule and auto-post optimized videos",
-  },
-  {
-    icon: Music,
-    label: "Access trending sounds",
-    description: "Match videos with viral audio trends",
-  },
-];
+type FlowStep = "welcome" | "connecting" | "done" | "error";
 
 const FEATURES = [
   {
@@ -76,14 +50,6 @@ const fadeUp = {
   exit: { opacity: 0, y: -12, transition: { duration: 0.25 } },
 };
 
-const MOCK_PROFILE = {
-  username: "viralcut_creator",
-  displayName: "ViralCut Creator",
-  avatarUrl:
-    "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=120&h=120&fit=crop&crop=face",
-  followers: 31200,
-};
-
 function TikTokIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -94,51 +60,91 @@ function TikTokIcon({ className }: { className?: string }) {
 
 export default function ConnectTikTok() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { connectAccount, completeOnboarding, isConnected } =
     useConnectionStore();
 
   const [step, setStep] = useState<FlowStep>("welcome");
-  const [connectingProgress, setConnectingProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [profile, setProfile] = useState<{
+    displayName: string;
+    username: string;
+    avatarUrl: string;
+    followers: number;
+  } | null>(null);
 
-  const alreadyConnected = isConnected("tiktok");
-
-  const handleStartConnect = useCallback(() => {
-    setStep("connecting");
-    setConnectingProgress(0);
-  }, []);
-
+  // Handle callback params from TikTok OAuth redirect
   useEffect(() => {
-    if (step !== "connecting") return;
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+    const openId = searchParams.get("open_id");
 
-    const interval = setInterval(() => {
-      setConnectingProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => setStep("permissions"), 400);
-          return 100;
-        }
-        return prev + Math.random() * 18 + 6;
+    if (success === "true" && openId) {
+      const displayName = searchParams.get("display_name") || "TikTok User";
+      const username = searchParams.get("username") || openId;
+      const avatarUrl = searchParams.get("avatar_url") || "";
+      const followerCount = parseInt(searchParams.get("follower_count") || "0", 10);
+
+      setProfile({
+        displayName,
+        username,
+        avatarUrl,
+        followers: followerCount,
       });
-    }, 300);
 
-    return () => clearInterval(interval);
-  }, [step]);
-
-  const handleGrantPermissions = () => {
-    setStep("profile");
-
-    setTimeout(() => {
       connectAccount({
         platform: "tiktok",
-        username: MOCK_PROFILE.username,
-        displayName: MOCK_PROFILE.displayName,
-        avatarUrl: MOCK_PROFILE.avatarUrl,
-        followers: MOCK_PROFILE.followers,
+        username,
+        displayName,
+        avatarUrl,
+        followers: followerCount,
         connectedAt: new Date().toISOString(),
       });
-      setTimeout(() => setStep("done"), 600);
-    }, 1500);
-  };
+
+      setStep("done");
+      // Clean URL params
+      window.history.replaceState({}, "", "/connect/tiktok");
+    } else if (error) {
+      setErrorMessage(decodeURIComponent(error));
+      setStep("error");
+      window.history.replaceState({}, "", "/connect/tiktok");
+    }
+  }, [searchParams, connectAccount]);
+
+  const handleStartConnect = useCallback(async () => {
+    setStep("connecting");
+
+    try {
+      // Get the TikTok authorization URL from our Edge Function
+      const { data, error } = await supabase.functions.invoke("tiktok-auth", {
+        body: {
+          action: "get-auth-url",
+          redirect_uri: window.location.origin,
+          state: crypto.randomUUID(),
+        },
+      });
+
+      if (error) {
+        console.error("Failed to get auth URL:", error);
+        setErrorMessage("Failed to initiate TikTok connection. Please try again.");
+        setStep("error");
+        return;
+      }
+
+      if (data?.auth_url) {
+        console.log("Redirecting to TikTok auth:", data.auth_url);
+        // Redirect to TikTok authorization page
+        window.location.href = data.auth_url;
+      } else {
+        setErrorMessage("Invalid response from server.");
+        setStep("error");
+      }
+    } catch (err: any) {
+      console.error("Error starting TikTok auth:", err);
+      setErrorMessage(err.message || "An unexpected error occurred.");
+      setStep("error");
+    }
+  }, []);
 
   const handleFinish = () => {
     completeOnboarding();
@@ -148,6 +154,11 @@ export default function ConnectTikTok() {
   const handleSkip = () => {
     completeOnboarding();
     navigate("/");
+  };
+
+  const handleRetry = () => {
+    setErrorMessage("");
+    setStep("welcome");
   };
 
   return (
@@ -267,7 +278,7 @@ export default function ConnectTikTok() {
             </motion.div>
           )}
 
-          {/* ── STEP: Connecting ── */}
+          {/* ── STEP: Connecting (loading) ── */}
           {step === "connecting" && (
             <motion.div
               key="connecting"
@@ -295,143 +306,67 @@ export default function ConnectTikTok() {
               <motion.p
                 custom={2}
                 variants={fadeUp}
-                className="mb-8 text-sm text-muted-foreground"
+                className="mb-4 text-sm text-muted-foreground"
               >
-                Authenticating via TikTok for Developers API
+                Preparing secure OAuth connection
               </motion.p>
-
-              <motion.div
-                custom={3}
-                variants={fadeUp}
-                className="w-full max-w-xs"
-              >
-                <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-pink-500"
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${Math.min(connectingProgress, 100)}%`,
-                    }}
-                    transition={{ duration: 0.3 }}
-                  />
-                </div>
-                <p className="mt-2 font-mono text-[12px] text-muted-foreground">
-                  {Math.min(Math.round(connectingProgress), 100)}%
-                </p>
+              <motion.div custom={3} variants={fadeUp}>
+                <Loader2 className="mx-auto size-6 animate-spin text-cyan-400" />
               </motion.div>
             </motion.div>
           )}
 
-          {/* ── STEP: Permissions ── */}
-          {step === "permissions" && (
+          {/* ── STEP: Error ── */}
+          {step === "error" && (
             <motion.div
-              key="permissions"
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              className="flex flex-col items-center"
-            >
-              <motion.div
-                custom={0}
-                variants={fadeUp}
-                className="mb-2 flex size-14 items-center justify-center rounded-2xl bg-cyan-500/12"
-              >
-                <Shield className="size-7 text-cyan-400" />
-              </motion.div>
-
-              <motion.h2
-                custom={1}
-                variants={fadeUp}
-                className="mb-1 text-xl font-bold text-foreground"
-              >
-                Grant Permissions
-              </motion.h2>
-              <motion.p
-                custom={2}
-                variants={fadeUp}
-                className="mb-8 text-sm text-muted-foreground"
-              >
-                ViralCut needs these permissions to optimize your TikTok content
-              </motion.p>
-
-              <motion.div
-                custom={3}
-                variants={fadeUp}
-                className="mb-8 w-full space-y-3"
-              >
-                {PERMISSIONS.map((perm, i) => (
-                  <motion.div
-                    key={perm.label}
-                    custom={i + 3}
-                    variants={fadeUp}
-                    initial="hidden"
-                    animate="visible"
-                    className="flex items-center gap-4 rounded-xl border border-border bg-card/80 p-4 backdrop-blur-sm"
-                  >
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                      <perm.icon className="size-5 text-cyan-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[13px] font-semibold text-foreground">
-                        {perm.label}
-                      </p>
-                      <p className="text-[12px] text-muted-foreground">
-                        {perm.description}
-                      </p>
-                    </div>
-                    <CheckCircle2 className="size-5 text-emerald" />
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              <motion.div
-                custom={9}
-                variants={fadeUp}
-                className="flex w-full flex-col items-center gap-3"
-              >
-                <button
-                  onClick={handleGrantPermissions}
-                  className="flex w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-pink-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-cyan-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-cyan-500/35 active:scale-[0.98]"
-                >
-                  <CheckCircle2 className="size-5" />
-                  Allow All Permissions
-                </button>
-                <button
-                  onClick={handleSkip}
-                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Cancel
-                </button>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* ── STEP: Profile Loading ── */}
-          {step === "profile" && (
-            <motion.div
-              key="profile"
+              key="error"
               initial="hidden"
               animate="visible"
               exit="exit"
               className="flex flex-col items-center text-center"
             >
-              <motion.div custom={0} variants={fadeUp}>
-                <Loader2 className="mb-6 size-12 animate-spin text-cyan-400" />
+              <motion.div
+                custom={0}
+                variants={fadeUp}
+                className="mb-6 flex size-20 items-center justify-center rounded-full bg-red-500/10"
+              >
+                <AlertCircle className="size-10 text-red-400" />
               </motion.div>
+
               <motion.h2
                 custom={1}
                 variants={fadeUp}
                 className="mb-2 text-xl font-bold text-foreground"
               >
-                Fetching your profile…
+                Connection Failed
               </motion.h2>
               <motion.p
                 custom={2}
                 variants={fadeUp}
-                className="text-sm text-muted-foreground"
+                className="mb-8 max-w-sm text-sm text-muted-foreground"
               >
-                Syncing account data and recent videos
+                {errorMessage || "Something went wrong while connecting to TikTok."}
               </motion.p>
+
+              <motion.div
+                custom={3}
+                variants={fadeUp}
+                className="flex flex-col items-center gap-3"
+              >
+                <button
+                  onClick={handleRetry}
+                  className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-pink-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-cyan-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-cyan-500/35 active:scale-[0.98]"
+                >
+                  <RefreshCw className="size-5" />
+                  Try Again
+                </button>
+                <button
+                  onClick={handleSkip}
+                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Skip for now
+                </button>
+              </motion.div>
             </motion.div>
           )}
 
@@ -467,53 +402,63 @@ export default function ConnectTikTok() {
                 Your account is linked and ready for viral content.
               </motion.p>
 
-              <motion.div
-                custom={3}
-                variants={fadeUp}
-                className="mb-8 w-full max-w-sm rounded-2xl border border-border bg-card/80 p-6 backdrop-blur-sm"
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={MOCK_PROFILE.avatarUrl}
-                    alt={MOCK_PROFILE.displayName}
-                    className="size-14 rounded-full border-2 border-cyan-500/40 object-cover"
-                  />
-                  <div className="text-left">
-                    <p className="text-base font-bold text-foreground">
-                      {MOCK_PROFILE.displayName}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      @{MOCK_PROFILE.username}
-                    </p>
+              {profile && (
+                <motion.div
+                  custom={3}
+                  variants={fadeUp}
+                  className="mb-8 w-full max-w-sm rounded-2xl border border-border bg-card/80 p-6 backdrop-blur-sm"
+                >
+                  <div className="flex items-center gap-4">
+                    {profile.avatarUrl ? (
+                      <img
+                        src={profile.avatarUrl}
+                        alt={profile.displayName}
+                        className="size-14 rounded-full border-2 border-cyan-500/40 object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-14 items-center justify-center rounded-full border-2 border-cyan-500/40 bg-cyan-500/10">
+                        <TikTokIcon className="size-7 text-cyan-400" />
+                      </div>
+                    )}
+                    <div className="text-left">
+                      <p className="text-base font-bold text-foreground">
+                        {profile.displayName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        @{profile.username}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
-                  <div className="text-center">
-                    <p className="font-mono text-lg font-bold text-foreground">
-                      {(MOCK_PROFILE.followers / 1000).toFixed(1)}K
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Followers
-                    </p>
+                  <div className="mt-4 flex items-center justify-between rounded-xl bg-secondary/60 px-4 py-3">
+                    <div className="text-center">
+                      <p className="font-mono text-lg font-bold text-foreground">
+                        {profile.followers >= 1000
+                          ? `${(profile.followers / 1000).toFixed(1)}K`
+                          : profile.followers}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Followers
+                      </p>
+                    </div>
+                    <div className="h-8 w-px bg-border" />
+                    <div className="text-center">
+                      <p className="font-mono text-lg font-bold text-foreground">
+                        0
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Optimized
+                      </p>
+                    </div>
+                    <div className="h-8 w-px bg-border" />
+                    <div className="flex items-center gap-1.5">
+                      <div className="size-2 rounded-full bg-emerald" />
+                      <span className="text-[12px] font-semibold text-emerald">
+                        Connected
+                      </span>
+                    </div>
                   </div>
-                  <div className="h-8 w-px bg-border" />
-                  <div className="text-center">
-                    <p className="font-mono text-lg font-bold text-foreground">
-                      0
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Optimized
-                    </p>
-                  </div>
-                  <div className="h-8 w-px bg-border" />
-                  <div className="flex items-center gap-1.5">
-                    <div className="size-2 rounded-full bg-emerald" />
-                    <span className="text-[12px] font-semibold text-emerald">
-                      Connected
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              )}
 
               <motion.div custom={4} variants={fadeUp}>
                 <button

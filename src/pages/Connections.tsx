@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connectionStore";
+import { supabase } from "@/lib/supabase";
 import type { Platform } from "@/types";
 
 function TikTokIcon({ className }: { className?: string }) {
@@ -70,6 +71,20 @@ export default function Connections() {
   const navigate = useNavigate();
   const { connectedAccounts, disconnectAccount, isConnected } =
     useConnectionStore();
+
+  const handleDisconnect = async (platform: Platform) => {
+    if (platform === "tiktok") {
+      const account = getAccount("tiktok");
+      try {
+        await supabase.functions.invoke("tiktok-auth", {
+          body: { action: "disconnect", open_id: account?.username || "" },
+        });
+      } catch (e) {
+        console.error("Failed to revoke TikTok token:", e);
+      }
+    }
+    disconnectAccount(platform);
+  };
 
   const getAccount = (platform: Platform) =>
     connectedAccounts.find((a) => a.platform === platform);
@@ -147,7 +162,7 @@ export default function Connections() {
               <div className="mt-auto">
                 {connected ? (
                   <button
-                    onClick={() => disconnectAccount(p.platform)}
+                    onClick={() => handleDisconnect(p.platform)}
                     className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400"
                   >
                     <Unlink className="size-4" />
