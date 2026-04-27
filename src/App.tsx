@@ -9,6 +9,7 @@ const Upload = lazy(() => import("@/pages/Upload"));
 const Editor = lazy(() => import("@/pages/Editor"));
 const Library = lazy(() => import("@/pages/Library"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
+const Team = lazy(() => import("@/pages/Team"));
 
 function LoadingFallback() {
   return (
@@ -79,6 +80,14 @@ export default function App() {
           element={
             <Suspense fallback={<LoadingFallback />}>
               <Analytics />
+            </Suspense>
+          }
+        />
+        <Route
+          path="team"
+          element={
+            <Suspense fallback={<LoadingFallback />}>
+              <Team />
             </Suspense>
           }
         />

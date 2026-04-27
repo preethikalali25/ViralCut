@@ -4,6 +4,7 @@ import {
   Film,
   FolderOpen,
   BarChart3,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Editor", path: "/editor", icon: Film },
   { label: "Library", path: "/library", icon: FolderOpen },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
+  { label: "Team", path: "/team", icon: Users },
 ];
 
 export const PLATFORM_CONFIG = {

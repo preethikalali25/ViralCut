@@ -91,3 +91,21 @@ export interface PlatformStats {
   engagement: number;
   topHookType: HookType;
 }
+
+export type UserRole = "admin" | "editor" | "viewer";
+export type UserStatus = "active" | "inactive" | "pending";
+
+export interface DummyUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  role: UserRole;
+  status: UserStatus;
+  joinedAt: string;
+  lastActive: string;
+  videosCreated: number;
+  totalViews: number;
+  connectedPlatforms: Platform[];
+  bio: string;
+}
