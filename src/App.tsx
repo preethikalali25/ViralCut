@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "@/components/layout/AppLayout";
 import { useConnectionStore } from "@/stores/connectionStore";
 
-const ConnectInstagram = lazy(() => import("@/pages/ConnectInstagram"));
 const ConnectTikTok = lazy(() => import("@/pages/ConnectTikTok"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Upload = lazy(() => import("@/pages/Upload"));
@@ -26,7 +25,7 @@ export default function App() {
 
   return (
     <Routes>
-      {/* Onboarding routes */}
+      {/* Onboarding route */}
       <Route
         path="/connect"
         element={
@@ -34,7 +33,7 @@ export default function App() {
             <Navigate to="/" replace />
           ) : (
             <Suspense fallback={<LoadingFallback />}>
-              <ConnectInstagram />
+              <ConnectTikTok />
             </Suspense>
           )
         }

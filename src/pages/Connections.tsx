@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Instagram,
   CheckCircle2,
   ArrowRight,
   LinkIcon,
@@ -38,15 +37,6 @@ interface PlatformCard {
 }
 
 const PLATFORMS: PlatformCard[] = [
-  {
-    platform: "instagram",
-    name: "Instagram",
-    description: "Connect to optimize Reels, track insights, and auto-publish content.",
-    icon: <Instagram className="size-7 text-white" />,
-    gradient: "from-[hsl(330_80%_55%)] via-[hsl(350_85%_58%)] to-[hsl(25_90%_55%)]",
-    shadowColor: "shadow-pink-500/20",
-    connectPath: "/connect",
-  },
   {
     platform: "tiktok",
     name: "TikTok",
