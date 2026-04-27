@@ -38,6 +38,6 @@ export const useVideoStore = create<VideoStore>()(
 
       getVideoById: (id) => get().videos.find((v) => v.id === id),
     }),
-    { name: "viralcut-videos" }
+    { name: "viralcut-videos", version: 2 }
   )
 );
