@@ -39,21 +39,22 @@ export default function Dashboard() {
   );
   const ready = videos.filter((v) => v.status === "ready");
 
-  const totalViews = published.reduce(
+  const publishedWithMetrics = published.filter((v) => v.metrics);
+  const totalViews = publishedWithMetrics.reduce(
     (sum, v) => sum + (v.metrics?.views ?? 0),
     0
   );
   const avgRetention =
-    published.length > 0
+    publishedWithMetrics.length > 0
       ? Math.round(
-          published.reduce(
+          publishedWithMetrics.reduce(
             (sum, v) => sum + (v.metrics?.retention ?? 0),
             0
-          ) / published.length
+          ) / publishedWithMetrics.length
         )
       : 0;
 
-  const recentPublished = published
+  const recentPublished = publishedWithMetrics
     .sort(
       (a, b) =>
         new Date(b.publishedAt!).getTime() -
@@ -263,10 +264,10 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-[13px] font-bold text-foreground">
-                      {formatNumber(v.metrics!.views)}
+                      {formatNumber(v.metrics?.views ?? 0)}
                     </p>
                     <p className="font-mono text-[11px] text-emerald">
-                      {v.metrics!.retention}%
+                      {v.metrics?.retention ?? 0}%
                     </p>
                   </div>
                 </Link>
