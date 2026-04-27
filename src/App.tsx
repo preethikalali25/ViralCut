@@ -11,6 +11,7 @@ const Editor = lazy(() => import("@/pages/Editor"));
 const Library = lazy(() => import("@/pages/Library"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const Team = lazy(() => import("@/pages/Team"));
+const Connections = lazy(() => import("@/pages/Connections"));
 
 function LoadingFallback() {
   return (
@@ -97,6 +98,14 @@ export default function App() {
           element={
             <Suspense fallback={<LoadingFallback />}>
               <Team />
+            </Suspense>
+          }
+        />
+        <Route
+          path="connections"
+          element={
+            <Suspense fallback={<LoadingFallback />}>
+              <Connections />
             </Suspense>
           }
         />

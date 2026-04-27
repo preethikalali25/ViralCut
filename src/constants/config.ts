@@ -5,6 +5,7 @@ import {
   FolderOpen,
   BarChart3,
   Users,
+  Link2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Library", path: "/library", icon: FolderOpen },
   { label: "Analytics", path: "/analytics", icon: BarChart3 },
   { label: "Team", path: "/team", icon: Users },
+  { label: "Connections", path: "/connections", icon: Link2 },
 ];
 
 export const PLATFORM_CONFIG = {
