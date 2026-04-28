@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock, Loader2, ArrowRight, KeyRound } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -379,6 +379,11 @@ export default function Login() {
             </div>
           )}
         </div>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          By continuing, you agree to our{" "}
+          <Link to="/policy" className="font-medium text-primary hover:text-primary/80 transition-colors">Privacy Policy & Terms</Link>
+        </p>
       </motion.div>
     </div>
   );
