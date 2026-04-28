@@ -15,6 +15,7 @@ const Library = lazy(() => import("@/pages/Library"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const Team = lazy(() => import("@/pages/Team"));
 const Connections = lazy(() => import("@/pages/Connections"));
+const Policy = lazy(() => import("@/pages/Policy"));
 
 function LoadingFallback() {
   return (
@@ -69,6 +70,16 @@ export default function App() {
               <ConnectTikTok />
             </Suspense>
           )
+        }
+      />
+
+      {/* Public policy page */}
+      <Route
+        path="/policy"
+        element={
+          <Suspense fallback={<LoadingFallback />}>
+            <Policy />
+          </Suspense>
         }
       />
 
