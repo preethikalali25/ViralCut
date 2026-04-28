@@ -48,26 +48,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted && session?.user) login(mapSupabaseUser(session.user));
-      if (mounted) setLoading(false);
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      console.log("Auth event:", event, session?.user?.email);
 
-      if (event === "SIGNED_IN" && session?.user) {
+      if (
+        (event === "SIGNED_IN" ||
+          event === "INITIAL_SESSION" ||
+          event === "TOKEN_REFRESHED") &&
+        session?.user
+      ) {
         login(mapSupabaseUser(session.user));
         setLoading(false);
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setLoading(false);
-      } else if (event === "TOKEN_REFRESHED" && session?.user) {
-        login(mapSupabaseUser(session.user));
+      } else if (event === "INITIAL_SESSION" && !session) {
+        setLoading(false);
       }
     });
+
+    // Safety fallback: if onAuthStateChange doesn't fire within 3s
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        if (mounted) {
+          if (session?.user) login(mapSupabaseUser(session.user));
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setLoading(false);
+      });
 
     return () => {
       mounted = false;
