@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -5,10 +6,12 @@ import {
   ArrowRight,
   LinkIcon,
   Unlink,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 import type { Platform } from "@/types";
 
 function TikTokIcon({ className }: { className?: string }) {
@@ -71,19 +74,24 @@ export default function Connections() {
   const navigate = useNavigate();
   const { connectedAccounts, disconnectAccount, isConnected } =
     useConnectionStore();
+  const [disconnecting, setDisconnecting] = useState<Platform | null>(null);
 
   const handleDisconnect = async (platform: Platform) => {
+    setDisconnecting(platform);
     if (platform === "tiktok") {
       const account = getAccount("tiktok");
       try {
         await supabase.functions.invoke("tiktok-auth", {
           body: { action: "disconnect", open_id: account?.username || "" },
         });
+        toast.success("TikTok disconnected successfully");
       } catch (e) {
         console.error("Failed to revoke TikTok token:", e);
+        toast.error("Failed to fully revoke token, but account was unlinked locally.");
       }
     }
     disconnectAccount(platform);
+    setDisconnecting(null);
   };
 
   const getAccount = (platform: Platform) =>
@@ -163,10 +171,15 @@ export default function Connections() {
                 {connected ? (
                   <button
                     onClick={() => handleDisconnect(p.platform)}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400"
+                    disabled={disconnecting === p.platform}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Unlink className="size-4" />
-                    Disconnect
+                    {disconnecting === p.platform ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Unlink className="size-4" />
+                    )}
+                    {disconnecting === p.platform ? "Disconnecting..." : "Disconnect"}
                   </button>
                 ) : p.connectPath === "#" ? (
                   <button

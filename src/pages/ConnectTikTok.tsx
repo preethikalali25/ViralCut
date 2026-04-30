@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,13 +14,20 @@ import {
   Loader2,
   ChevronRight,
   AlertCircle,
+  ExternalLink,
+  WifiOff,
+  KeyRound,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connectionStore";
 import { supabase } from "@/lib/supabase";
+import { FunctionsHttpError } from "@supabase/supabase-js";
+import { toast } from "sonner";
 import connectBg from "@/assets/connect-tiktok-bg.jpg";
 
 type FlowStep = "welcome" | "connecting" | "done" | "error";
+type ErrorType = "network" | "auth" | "config" | "timeout" | "unknown";
 
 const FEATURES = [
   {
@@ -58,6 +65,61 @@ function TikTokIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * Parse TikTok error messages into user-friendly messages with error type classification
+ */
+function parseErrorMessage(raw: string): { message: string; type: ErrorType } {
+  const lower = raw.toLowerCase();
+
+  if (lower.includes("client_key") || lower.includes("client key") || lower.includes("invalid client")) {
+    return {
+      message: "TikTok rejected the app credentials. The Client Key may be invalid or the app isn't properly configured in TikTok Developer Portal.",
+      type: "config",
+    };
+  }
+  if (lower.includes("redirect_uri") || lower.includes("redirect uri") || lower.includes("callback")) {
+    return {
+      message: "The redirect URL isn't registered in TikTok Developer Portal. Contact the developer to fix the Login Kit configuration.",
+      type: "config",
+    };
+  }
+  if (lower.includes("access_denied") || lower.includes("user_cancelled") || lower.includes("denied")) {
+    return {
+      message: "You cancelled the TikTok authorization. You'll need to accept the permissions to connect your account.",
+      type: "auth",
+    };
+  }
+  if (lower.includes("scope") || lower.includes("permission")) {
+    return {
+      message: "The requested permissions aren't approved for this TikTok app. Contact the developer to verify scope configuration.",
+      type: "config",
+    };
+  }
+  if (lower.includes("network") || lower.includes("failed to fetch") || lower.includes("econnrefused")) {
+    return {
+      message: "Unable to reach the server. Check your internet connection and try again.",
+      type: "network",
+    };
+  }
+  if (lower.includes("timeout") || lower.includes("timed out")) {
+    return {
+      message: "The request took too long. The server may be temporarily slow — try again in a moment.",
+      type: "timeout",
+    };
+  }
+  if (lower.includes("token") || lower.includes("expired")) {
+    return {
+      message: "Authentication token issue. Please try connecting again from the start.",
+      type: "auth",
+    };
+  }
+
+  return {
+    message: raw || "Something went wrong while connecting to TikTok. Please try again.",
+    type: "unknown",
+  };
+}
+
 export default function ConnectTikTok() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -66,12 +128,22 @@ export default function ConnectTikTok() {
 
   const [step, setStep] = useState<FlowStep>("welcome");
   const [errorMessage, setErrorMessage] = useState("");
+  const [errorType, setErrorType] = useState<ErrorType>("unknown");
+  const [connectingStatus, setConnectingStatus] = useState("Preparing secure connection...");
+  const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [profile, setProfile] = useState<{
     displayName: string;
     username: string;
     avatarUrl: string;
     followers: number;
   } | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
+    };
+  }, []);
 
   // Handle callback params from TikTok OAuth redirect
   useEffect(() => {
@@ -101,11 +173,15 @@ export default function ConnectTikTok() {
         connectedAt: new Date().toISOString(),
       });
 
+      toast.success("TikTok connected successfully!");
       setStep("done");
       // Clean URL params
       window.history.replaceState({}, "", "/connect/tiktok");
     } else if (error) {
-      setErrorMessage(decodeURIComponent(error));
+      const decodedError = decodeURIComponent(error);
+      const { message, type } = parseErrorMessage(decodedError);
+      setErrorMessage(message);
+      setErrorType(type);
       setStep("error");
       window.history.replaceState({}, "", "/connect/tiktok");
     }
@@ -113,9 +189,18 @@ export default function ConnectTikTok() {
 
   const handleStartConnect = useCallback(async () => {
     setStep("connecting");
+    setConnectingStatus("Preparing secure connection...");
+
+    // Set a timeout for the initial request (15s)
+    connectTimeoutRef.current = setTimeout(() => {
+      setErrorMessage("Connection timed out. The server took too long to respond.");
+      setErrorType("timeout");
+      setStep("error");
+    }, 15000);
 
     try {
-      // Get the TikTok authorization URL from our Edge Function
+      setConnectingStatus("Contacting ViralCut servers...");
+
       const { data, error } = await supabase.functions.invoke("tiktok-auth", {
         body: {
           action: "get-auth-url",
@@ -124,24 +209,58 @@ export default function ConnectTikTok() {
         },
       });
 
+      // Clear timeout on response
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = null;
+      }
+
       if (error) {
         console.error("Failed to get auth URL:", error);
-        setErrorMessage("Failed to initiate TikTok connection. Please try again.");
+        let errorMsg = "Failed to initiate TikTok connection.";
+        if (error instanceof FunctionsHttpError) {
+          try {
+            const statusCode = error.context?.status ?? 500;
+            const textContent = await error.context?.text();
+            errorMsg = `[Code: ${statusCode}] ${textContent || error.message || "Unknown error"}`;
+          } catch {
+            errorMsg = error.message || "Failed to read response";
+          }
+        }
+        const { message, type } = parseErrorMessage(errorMsg);
+        setErrorMessage(message);
+        setErrorType(type);
         setStep("error");
         return;
       }
 
       if (data?.auth_url) {
+        setConnectingStatus("Redirecting to TikTok...");
         console.log("Redirecting to TikTok auth:", data.auth_url);
-        // Redirect to TikTok authorization page
+        // Small delay so user sees the status change
+        await new Promise((r) => setTimeout(r, 500));
         window.location.href = data.auth_url;
       } else {
-        setErrorMessage("Invalid response from server.");
+        setErrorMessage("Invalid response from server. No authorization URL received.");
+        setErrorType("config");
         setStep("error");
       }
     } catch (err: any) {
+      if (connectTimeoutRef.current) {
+        clearTimeout(connectTimeoutRef.current);
+        connectTimeoutRef.current = null;
+      }
       console.error("Error starting TikTok auth:", err);
-      setErrorMessage(err.message || "An unexpected error occurred.");
+
+      // Detect network errors
+      if (err.message?.includes("Failed to fetch") || err.message?.includes("NetworkError")) {
+        setErrorMessage("Unable to reach the server. Check your internet connection and try again.");
+        setErrorType("network");
+      } else {
+        const { message, type } = parseErrorMessage(err.message || "An unexpected error occurred.");
+        setErrorMessage(message);
+        setErrorType(type);
+      }
       setStep("error");
     }
   }, []);
@@ -158,7 +277,14 @@ export default function ConnectTikTok() {
 
   const handleRetry = () => {
     setErrorMessage("");
+    setErrorType("unknown");
     setStep("welcome");
+  };
+
+  const handleRetryDirect = () => {
+    setErrorMessage("");
+    setErrorType("unknown");
+    handleStartConnect();
   };
 
   return (
@@ -289,9 +415,10 @@ export default function ConnectTikTok() {
             >
               <motion.div custom={0} variants={fadeUp} className="mb-8">
                 <div className="relative mx-auto size-20">
-                  <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-cyan-400" />
-                  <div className="absolute inset-2 flex items-center justify-center rounded-full bg-card">
-                    <TikTokIcon className="size-8 text-cyan-400" />
+                  <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-cyan-400" style={{ animationDuration: '1.5s' }} />
+                  <div className="absolute inset-1 animate-spin rounded-full border-2 border-transparent border-b-pink-400" style={{ animationDuration: '2s', animationDirection: 'reverse' }} />
+                  <div className="absolute inset-3 flex items-center justify-center rounded-full bg-card">
+                    <TikTokIcon className="size-7 text-cyan-400" />
                   </div>
                 </div>
               </motion.div>
@@ -306,12 +433,25 @@ export default function ConnectTikTok() {
               <motion.p
                 custom={2}
                 variants={fadeUp}
-                className="mb-4 text-sm text-muted-foreground"
+                className="mb-2 text-sm text-muted-foreground"
               >
-                Preparing secure OAuth connection
+                {connectingStatus}
               </motion.p>
-              <motion.div custom={3} variants={fadeUp}>
-                <Loader2 className="mx-auto size-6 animate-spin text-cyan-400" />
+              <motion.div custom={3} variants={fadeUp} className="flex flex-col items-center gap-3">
+                <Loader2 className="mx-auto size-5 animate-spin text-cyan-400" />
+                <p className="text-[11px] text-muted-foreground/60">
+                  You'll be redirected to TikTok to authorize access
+                </p>
+              </motion.div>
+
+              {/* Cancel button */}
+              <motion.div custom={4} variants={fadeUp} className="mt-8">
+                <button
+                  onClick={() => setStep("welcome")}
+                  className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Cancel
+                </button>
               </motion.div>
             </motion.div>
           )}
@@ -330,7 +470,15 @@ export default function ConnectTikTok() {
                 variants={fadeUp}
                 className="mb-6 flex size-20 items-center justify-center rounded-full bg-red-500/10"
               >
-                <AlertCircle className="size-10 text-red-400" />
+                {errorType === "network" ? (
+                  <WifiOff className="size-10 text-red-400" />
+                ) : errorType === "timeout" ? (
+                  <Clock className="size-10 text-amber-400" />
+                ) : errorType === "config" ? (
+                  <KeyRound className="size-10 text-orange-400" />
+                ) : (
+                  <AlertCircle className="size-10 text-red-400" />
+                )}
               </motion.div>
 
               <motion.h2
@@ -338,23 +486,106 @@ export default function ConnectTikTok() {
                 variants={fadeUp}
                 className="mb-2 text-xl font-bold text-foreground"
               >
-                Connection Failed
+                {errorType === "network"
+                  ? "No Connection"
+                  : errorType === "timeout"
+                    ? "Request Timed Out"
+                    : errorType === "config"
+                      ? "Configuration Error"
+                      : "Connection Failed"}
               </motion.h2>
               <motion.p
                 custom={2}
                 variants={fadeUp}
-                className="mb-8 max-w-sm text-sm text-muted-foreground"
+                className="mb-4 max-w-sm text-sm text-muted-foreground"
               >
                 {errorMessage || "Something went wrong while connecting to TikTok."}
               </motion.p>
 
+              {/* Troubleshooting tips */}
               <motion.div
                 custom={3}
+                variants={fadeUp}
+                className="mb-8 w-full max-w-sm rounded-xl border border-border bg-card/60 p-4 text-left"
+              >
+                <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Troubleshooting
+                </p>
+                <ul className="space-y-2 text-[13px] text-muted-foreground">
+                  {errorType === "network" && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Check your internet connection
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Disable VPN or proxy if active
+                      </li>
+                    </>
+                  )}
+                  {errorType === "timeout" && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        The server may be temporarily overloaded
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Wait a moment and try again
+                      </li>
+                    </>
+                  )}
+                  {errorType === "config" && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Verify your TikTok Client Key is correct
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Ensure the redirect URI is registered in TikTok Developer Portal
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Check Login Kit is enabled for your TikTok app
+                      </li>
+                    </>
+                  )}
+                  {errorType === "auth" && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        You may have denied access — try again and accept permissions
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Ensure your TikTok account is in good standing
+                      </li>
+                    </>
+                  )}
+                  {errorType === "unknown" && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Try again — this may be a temporary issue
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-0.5 size-1.5 shrink-0 rounded-full bg-muted-foreground/50" />
+                        Clear your browser cache and retry
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </motion.div>
+
+              <motion.div
+                custom={4}
                 variants={fadeUp}
                 className="flex flex-col items-center gap-3"
               >
                 <button
-                  onClick={handleRetry}
+                  onClick={errorType === "network" || errorType === "timeout" ? handleRetryDirect : handleRetry}
                   className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-pink-500 px-8 py-4 text-base font-bold text-white shadow-lg shadow-cyan-500/25 transition-all duration-200 hover:shadow-xl hover:shadow-cyan-500/35 active:scale-[0.98]"
                 >
                   <RefreshCw className="size-5" />
